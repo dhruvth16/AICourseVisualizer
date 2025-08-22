@@ -71,7 +71,6 @@ function PromptLesson() {
               setSelectedNode({ id, label });
 
               // If already cached, show instantly
-              console.log(cachedNodesContent.current[label]);
               if (cachedNodesContent.current[label]) {
                 setSubtopicContent(cachedNodesContent.current[label]);
                 return;

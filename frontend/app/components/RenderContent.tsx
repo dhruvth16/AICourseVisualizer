@@ -1,9 +1,10 @@
 import React from "react";
+import ReactMarkdown from "react-markdown";
 
 function RenderContent({ subtopicContent }: { subtopicContent: string }) {
   return (
-    <div className="max-h-[60vh] overflow-y-auto space-y-3 text-gray-700 leading-relaxed">
-      {subtopicContent}
+    <div className="prose max-h-[60vh] max-w-none overflow-y-auto space-y-3 text-gray-700 leading-relaxed no-scrollbar">
+      <ReactMarkdown>{subtopicContent}</ReactMarkdown>
     </div>
   );
 }
