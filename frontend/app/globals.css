@@ -14,3 +14,16 @@
     /* Firefox */
   }
 }
+
+:root {
+  --font-playfair: "Playfair Display", serif;
+  --font-lato: "Lato", sans-serif;
+}
+
+.font-heading {
+  font-family: var(--font-playfair);
+}
+
+.font-body {
+  font-family: var(--font-lato);
+}

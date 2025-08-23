@@ -3,16 +3,32 @@
 import RenderContent from "../components/RenderContent";
 import { getFromDB, saveToDB } from "../helper/indexDB";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, History, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  X,
+  History,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  Plus,
+} from "lucide-react";
 import axios from "axios";
 import React, { useState, useRef, useEffect } from "react";
 import MermaidDiagram from "../helper/MermaidContentViewer";
+import "../globals.css";
 
 const enum MODEL {
   GPT_4O_MINI = "gpt-4o-mini",
   GPT_OSS_20B_FREE = "gpt-oss-20b:free",
-  GPT_4O = "gpt-4o",
-  DEEPSEEK_CHAT_V3_0324_FREE = "deepseek-chat-v3-0324:free",
+}
+
+interface HistoryItem {
+  _id: string;
+  title: string;
+  timestamp: number;
+  mermaidDiagram: string;
+  model_used: string;
+  subtopics: string[];
 }
 
 function PromptLesson() {
@@ -24,7 +40,7 @@ function PromptLesson() {
   const [loading, setLoading] = useState(false);
   const [loadingContent, setLoadingContent] = useState(false);
   const [subtopicContent, setSubtopicContent] = useState("");
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [searchHistory, setSearchHistory] = useState<HistoryItem[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const cachedNodesContent = useRef<Record<string, string>>({});
   const [mermaidCode, setMermaidCode] = useState("");
@@ -39,7 +55,8 @@ function PromptLesson() {
   //     D --> F[Absolute Value];
   //     D --> G[Operations with Integers];
   //     G --> H[Addition of Integers];
-  //     H --> H1[Adding with Same Signs];
+  //     H --> H1[Adding with Same Signs];    setPrompt(historyTitle);
+
   //     H --> H2[Adding with Different Signs];
   //     H --> I[Subtraction of Integers];
   //     I --> I1["Add the Opposite" Method];
@@ -56,30 +73,85 @@ function PromptLesson() {
   //     style L fill:#90EE90,stroke:#333,stroke-width:2px;
   // `;
 
-  useEffect(() => {
-    const savedHistory = localStorage.getItem("searchHistory");
-    if (savedHistory) {
-      setSearchHistory(JSON.parse(savedHistory));
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("searchHistory", JSON.stringify(searchHistory));
-  }, [searchHistory]);
-
-  const addToHistory = (searchTerm: string) => {
-    if (searchTerm.trim() && !searchHistory.includes(searchTerm.trim())) {
-      const newHistory = [searchTerm.trim(), ...searchHistory].slice(0, 10);
-      setSearchHistory(newHistory);
+  const fetchSearchHistory = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/lessons`
+      );
+      setSearchHistory(response.data);
+      setPrompt(response.data[response.data.length - 1]?.title || "");
+      setMermaidCode(
+        response.data[response.data.length - 1]?.mermaidDiagram || ""
+      );
+      setModel(response.data[response.data.length - 1]?.model_used || "");
+    } catch (error) {
+      console.error("Error fetching search history:", error);
     }
   };
 
-  const handleHistoryClick = (historyItem: string) => {
-    setPrompt(historyItem);
+  useEffect(() => {
+    fetchSearchHistory();
+  }, []);
+
+  const handleHistoryClick = async (historyId: string) => {
+    try {
+      setLoading(true);
+
+      const { data } = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/lesson/${historyId}`
+      );
+
+      // Restore lesson title in the input
+      if (data.title) setPrompt(data.title);
+
+      // Restore diagram
+      if (data.mermaidDiagram) {
+        setMermaidCode(data.mermaidDiagram);
+        setModel(data.model_used);
+      } else {
+        console.warn("No mermaidDiagram found in response:", data);
+      }
+    } catch (error) {
+      console.error("Error fetching lesson:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const clearHistory = () => {
-    setSearchHistory([]);
+    if (confirm("Are you sure you want to clear the search history?")) {
+      axios
+        .delete(`${process.env.NEXT_PUBLIC_API_URL}/clear_history`)
+        .then(() => {
+          setSearchHistory([]);
+        })
+        .catch((error) => {
+          console.error("Error clearing history:", error);
+        });
+    }
+  };
+
+  const handleDeleteHistory = (historyId: string) => {
+    if (confirm("Are you sure you want to delete this search history?")) {
+      axios
+        .delete(`${process.env.NEXT_PUBLIC_API_URL}/clear/${historyId}`)
+        .then(() => {
+          setSearchHistory((prev) =>
+            prev.filter((item) => item._id !== historyId)
+          );
+          setMermaidCode("");
+        })
+        .catch((error) => {
+          console.error("Error deleting history:", error);
+        });
+    }
+  };
+
+  const handleNewChat = () => {
+    setPrompt("");
+    setMermaidCode("");
+    setSubtopicContent("");
+    setSelectedNode(null);
   };
 
   const handleNodeClick = async (id: string, label: string) => {
@@ -168,6 +240,15 @@ function PromptLesson() {
             animate={{ opacity: 1 }}
             className="flex-1 overflow-y-auto p-4"
           >
+            <div
+              className="flex items-center gap-2 mb-8 cursor-pointer"
+              onClick={handleNewChat}
+            >
+              <span className="bg-zinc-800 p-2 rounded-full hover:bg-zinc-700 transition-colors">
+                <Plus size={16} />
+              </span>
+              <span>New chat</span>
+            </div>
             {searchHistory.length > 0 ? (
               <>
                 <div className="flex justify-between items-center mb-3">
@@ -180,17 +261,23 @@ function PromptLesson() {
                   </button>
                 </div>
                 <div className="space-y-2">
-                  {searchHistory.map((item, index) => (
+                  {searchHistory.map((item: HistoryItem, index) => (
                     <motion.button
                       key={index}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      onClick={() => handleHistoryClick(item)}
+                      onClick={() => handleHistoryClick(item._id)}
                       className="w-full p-3 text-left bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors border border-zinc-700"
                     >
-                      <div className="text-sm truncate text-gray-200">
-                        {item}
+                      <div className="text-sm truncate text-gray-200 flex items-center justify-between">
+                        {item.title}
+                        <span
+                          className="hover:text-red-500 cursor-pointer"
+                          onClick={() => handleDeleteHistory(item._id)}
+                        >
+                          <Trash2 size={15} />
+                        </span>
                       </div>
                     </motion.button>
                   ))}
@@ -211,21 +298,20 @@ function PromptLesson() {
         {/* Header */}
         <div className="bg-zinc-800 border-b border-zinc-700 py-3">
           <div className="max-w-4xl text-center mx-auto">
-            <h1 className="text-4xl bg-gradient-to-b from-blue-400 to-purple-500 bg-clip-text font-black tracking-tighter text-transparent mb-2 ">
+            <h1 className="text-4xl bg-gradient-to-b from-blue-400 to-purple-500 bg-clip-text font-black tracking-tighter text-transparent mb-2 font-heading">
               Interactive Learning Dashboard
             </h1>
           </div>
         </div>
 
         {/* Search Section */}
-        <div className="bg-zinc-800 border-b border-zinc-800 p-6">
+        <div className="bg-zinc-800 border-b border-zinc-800 p-6 flex items-center justify-center">
           <div className="max-w-4xl mx-auto">
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
                 console.log(model);
                 if (prompt.trim()) {
-                  addToHistory(prompt);
                   try {
                     setLoading(true);
                     const res = await axios.post(
@@ -266,10 +352,6 @@ function PromptLesson() {
                   <option value="select model">Model</option>
                   <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
                   <option value="openai/gpt-oss-20b:free">GPT-OSS</option>
-                  <option value="openai/gpt-4o">GPT-4o</option>
-                  <option value="deepseek/deepseek-chat-v3-0324:free">
-                    DeepSeek
-                  </option>
                 </select>
               </div>
               <motion.button

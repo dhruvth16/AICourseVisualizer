@@ -1,14 +1,31 @@
 import os
 import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
-from req_models.req_models import LessonRequest, SubtopicRequest
+from req_models.req_models import LessonRequest, SubtopicRequest, SignInRequest
 from helper.extract_nodes_from_mermaid import extract_nodes_from_mermaid
 from fastapi import HTTPException
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
+from pydantic import BaseModel, EmailStr
+from fastapi import FastAPI, HTTPException
+import random, string
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+from fastapi.responses import JSONResponse
+from settings import conf
+
+app = FastAPI()
+
+otp_store = {}
+
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    name: str
+    otp: str
 
 load_dotenv()
 
@@ -33,6 +50,7 @@ db = mongo_client[DB_NAME]
 lessons_collection = db["lessons"]
 subtopics_collection = db["subtopics"]
 contents_collection = db["contents"]
+users_collection = db["users"]
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
@@ -41,10 +59,13 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 # -------------------------
 def generate_mermaid_code_ai(lesson_name: str, model: str) -> dict:
     prompt = f"""
-    Generate only Mermaid.js code (no explanation, no text, no markdown formatting). 
+    Generate only Mermaid.js code flowchart (no explanation, no text, no markdown formatting). 
     The code should describe a flowchart for the lesson "{lesson_name}" 
-    with all the important subtopics and their dependencies, use upto 3500 tokens only. 
-    Output only the Mermaid code, starting directly with 'graph TD'.
+    with all the important subtopics and their dependencies. 
+    Output only the Mermaid code, starting directly with 
+    'flowchart TD' or 'flowchart LR' or 'graph TD' or 'graph LR'
+    according to the size of the code so that it looks good, and 
+    make sure to give the correct mermaid code which does not breaks at the time of rendering.
     """
     response = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
@@ -99,6 +120,14 @@ def generate_subtopic_content(lesson_name: str, subtopic_name: str, model: str) 
         "model_used": model,
         "content": data["choices"][0]["message"]["content"].strip(),
     }
+
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=60))
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, os.getenv("SECRET_KEY"), algorithm=os.getenv("ALGORITHM"))
+    return encoded_jwt
 
 # -------------------------
 # ROUTES
@@ -190,8 +219,6 @@ async def get_lesson(lesson_id: str):
         subtopic_ids = lesson.get("subtopics", [])
         subtopic_titles = [s["label"] for s in subtopic_ids if "label" in s]
 
-        print("Subtopic Titles:", subtopic_titles)
-
         if subtopic_titles:
             lesson["subtopics"] = subtopic_titles
 
@@ -199,3 +226,98 @@ async def get_lesson(lesson_id: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.delete("/api/clear_history")
+async def clear_history():
+    try:
+        await lessons_collection.delete_many({})
+        return {"message": "Search history cleared"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/clear/{chat_id}")
+async def clear_chat_history(chat_id: str):
+    try:
+        await lessons_collection.delete_many({"_id": ObjectId(chat_id)})
+        return {"message": "Chat history cleared"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/initiate-signin")
+async def initiate_signin(req: SignInRequest):
+    # 1. Generate OTP
+    otp = ''.join(random.choices(string.digits, k=6))
+    expiry = datetime.utcnow() + timedelta(minutes=5)
+
+    otp_store[req.email] = {"otp": otp, "expires": expiry, "name": req.name}
+
+    # 2. Send Email
+    message = MessageSchema(
+        subject="Your OTP Code",
+        recipients=[req.email],
+        body=f"Hi {req.name},\n\nYour OTP is: {otp}. It will expire in 5 minutes.\n\nRegards,\nTeam",
+        subtype="plain"
+    )
+    fm = FastMail(conf)
+    await fm.send_message(message)
+
+    return {"message": f"OTP sent successfully to {req.email}"}
+
+@app.post("/api/verify-otp")
+async def verify_otp(req: VerifyOTPRequest):
+    # 1. Validate OTP
+    if req.email not in otp_store:
+        raise HTTPException(status_code=400, detail="No OTP request found")
+
+    data = otp_store[req.email]
+    if datetime.utcnow() > data["expires"]:
+        raise HTTPException(status_code=400, detail="OTP expired")
+    if req.otp != data["otp"]:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    # OTP valid — remove from store
+    del otp_store[req.email]
+
+    # 2. Check if user exists
+    user = await users_collection.find_one({"email": req.email})
+
+    if not user:
+        # New signup
+        new_user = {
+            "email": req.email,
+            "name": req.name,
+            "created_at": datetime.utcnow()
+        }
+        result = await users_collection.insert_one(new_user)
+        user_id = str(result.inserted_id)
+    else:
+        user_id = str(user["_id"])
+
+    # 3. Issue JWT Token
+    access_token_expires = timedelta(
+        minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
+    )
+    token = create_access_token(
+        data={"sub": req.email, "user_id": user_id},
+        expires_delta=access_token_expires
+    )
+
+    # 4. Return response with HttpOnly cookie
+    response = JSONResponse(
+        content={
+            "message": "OTP verified, login successful",
+            "user": {"id": user_id, "email": req.email, "name": req.name, "token": token}
+        }
+    )
+    response.set_cookie(
+        key="token",
+        value=token,
+        httponly=True,
+        secure=os.getenv("ENV") == "production",
+        samesite="strict",
+        max_age=int(access_token_expires.total_seconds()),
+        path="/"
+    )
+
+    return response

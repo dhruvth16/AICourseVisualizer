@@ -13,7 +13,8 @@ def setup_db():
     lessons_collection = db["lessons"]
     subtopics_collection = db["subtopics"]
     contents_collection = db["contents"]
+    users_collection = db["users"]
 
     print("Database collections initialized:")
-    return lessons_collection, subtopics_collection, contents_collection
+    return lessons_collection, subtopics_collection, contents_collection, users_collection
 
