@@ -8,6 +8,13 @@ import axios from "axios";
 import React, { useState, useRef, useEffect } from "react";
 import MermaidDiagram from "../helper/MermaidContentViewer";
 
+const enum MODEL {
+  GPT_4O_MINI = "gpt-4o-mini",
+  GPT_OSS_20B_FREE = "gpt-oss-20b:free",
+  GPT_4O = "gpt-4o",
+  DEEPSEEK_CHAT_V3_0324_FREE = "deepseek-chat-v3-0324:free",
+}
+
 function PromptLesson() {
   const [prompt, setPrompt] = useState("");
   const [selectedNode, setSelectedNode] = useState<{
@@ -20,35 +27,35 @@ function PromptLesson() {
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const cachedNodesContent = useRef<Record<string, string>>({});
-  // const [mermaidCode, setMermaidCode] = useState<string>("");
+  const [mermaidCode, setMermaidCode] = useState("");
+  const [model, setModel] = useState<MODEL | "">("");
 
-  const mermaidCode = `
-    graph TD
-      A[Start: Introduction to Integers] --> B{What are Integers?};
-      B --> C[Definition & Real-World Examples];
-      C --> D[Representing Integers on a Number Line];
-      D --> E[Comparing & Ordering Integers];
-      D --> F[Absolute Value];
-      D --> G[Operations with Integers];
-      G --> H[Addition of Integers];
-      H --> H1[Adding with Same Signs];
-      H --> H2[Adding with Different Signs];
-      H --> I[Subtraction of Integers];
-      I --> I1["Add the Opposite" Method];
-      G --> J[Multiplication of Integers];
-      J --> J1[Sign Rules: Plus Plus, Minus Minus, Plus Minus, Minus Plus];
-      G --> K[Division of Integers];
-      K --> K1[Sign Rules: Same as Multiplication];
-      E --> L[Solving Real-World Problems];
-      F --> L;
-      I --> L;
-      J --> L;
-      K --> L;
-      style A fill:#ADD8E6,stroke:#333,stroke-width:2px;
-      style L fill:#90EE90,stroke:#333,stroke-width:2px;
-  `;
+  // const mermaidCode = `
+  //   graph TD
+  //     A[Start: Introduction to Integers] --> B{What are Integers?};
+  //     B --> C[Definition & Real-World Examples];
+  //     C --> D[Representing Integers on a Number Line];
+  //     D --> E[Comparing & Ordering Integers];
+  //     D --> F[Absolute Value];
+  //     D --> G[Operations with Integers];
+  //     G --> H[Addition of Integers];
+  //     H --> H1[Adding with Same Signs];
+  //     H --> H2[Adding with Different Signs];
+  //     H --> I[Subtraction of Integers];
+  //     I --> I1["Add the Opposite" Method];
+  //     G --> J[Multiplication of Integers];
+  //     J --> J1[Sign Rules: Plus Plus, Minus Minus, Plus Minus, Minus Plus];
+  //     G --> K[Division of Integers];
+  //     K --> K1[Sign Rules: Same as Multiplication];
+  //     E --> L[Solving Real-World Problems];
+  //     F --> L;
+  //     I --> L;
+  //     J --> L;
+  //     K --> L;
+  //     style A fill:#ADD8E6,stroke:#333,stroke-width:2px;
+  //     style L fill:#90EE90,stroke:#333,stroke-width:2px;
+  // `;
 
-  // Load search history from localStorage on component mount
   useEffect(() => {
     const savedHistory = localStorage.getItem("searchHistory");
     if (savedHistory) {
@@ -56,14 +63,13 @@ function PromptLesson() {
     }
   }, []);
 
-  // Save search history to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("searchHistory", JSON.stringify(searchHistory));
   }, [searchHistory]);
 
   const addToHistory = (searchTerm: string) => {
     if (searchTerm.trim() && !searchHistory.includes(searchTerm.trim())) {
-      const newHistory = [searchTerm.trim(), ...searchHistory].slice(0, 10); // Keep only last 10 searches
+      const newHistory = [searchTerm.trim(), ...searchHistory].slice(0, 10);
       setSearchHistory(newHistory);
     }
   };
@@ -100,7 +106,12 @@ function PromptLesson() {
     try {
       setLoadingContent(true);
       const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/Integers/${label}`
+        `${process.env.NEXT_PUBLIC_API_URL}/subtopic`,
+        {
+          lesson_name: prompt,
+          subtopic_name: label,
+          model: model || "gpt-4o-mini",
+        }
       );
       setSubtopicContent(res.data.subtopic_content);
 
@@ -118,29 +129,29 @@ function PromptLesson() {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="flex h-screen bg-black">
       {/* Sidebar */}
       <motion.div
         initial={false}
         animate={{ width: sidebarOpen ? 320 : 60 }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="bg-white shadow-2xl border-r border-gray-200 flex flex-col relative z-10"
+        className="bg-zinc-900 text-white shadow-2xl border-r border-zinc-800 flex flex-col relative z-10"
       >
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
           {sidebarOpen && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="flex items-center gap-2"
             >
-              <History className="text-blue-600" size={20} />
-              <h2 className="font-semibold text-gray-800">Search History</h2>
+              <History className="text-blue-400" size={20} />
+              <h2 className="font-semibold">Search History</h2>
             </motion.div>
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
           >
             {sidebarOpen ? (
               <ChevronLeft size={18} />
@@ -160,10 +171,10 @@ function PromptLesson() {
             {searchHistory.length > 0 ? (
               <>
                 <div className="flex justify-between items-center mb-3">
-                  <span className="text-sm text-gray-600">Recent searches</span>
+                  <span className="text-sm text-gray-300">Recent searches</span>
                   <button
                     onClick={clearHistory}
-                    className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                    className="text-xs text-red-400 hover:text-red-600 transition-colors"
                   >
                     Clear all
                   </button>
@@ -176,9 +187,9 @@ function PromptLesson() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
                       onClick={() => handleHistoryClick(item)}
-                      className="w-full p-3 text-left bg-gray-50 hover:bg-blue-50 rounded-lg transition-colors border border-gray-100 hover:border-blue-200"
+                      className="w-full p-3 text-left bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors border border-zinc-700"
                     >
-                      <div className="text-sm text-gray-700 truncate">
+                      <div className="text-sm truncate text-gray-200">
                         {item}
                       </div>
                     </motion.button>
@@ -198,29 +209,31 @@ function PromptLesson() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200 py-3">
+        <div className="bg-zinc-800 border-b border-zinc-700 py-3">
           <div className="max-w-4xl text-center mx-auto">
-            <h1 className="text-4xl bg-gradient-to-b from-blue-400 to-blue-700 bg-clip-text font-black tracking-tighter text-transparent mb-2 ">
+            <h1 className="text-4xl bg-gradient-to-b from-blue-400 to-purple-500 bg-clip-text font-black tracking-tighter text-transparent mb-2 ">
               Interactive Learning Dashboard
             </h1>
           </div>
         </div>
 
         {/* Search Section */}
-        <div className="bg-white border-b border-gray-200 p-6">
+        <div className="bg-zinc-800 border-b border-zinc-800 p-6">
           <div className="max-w-4xl mx-auto">
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
+                console.log(model);
                 if (prompt.trim()) {
                   addToHistory(prompt);
                   try {
                     setLoading(true);
                     const res = await axios.post(
-                      `${process.env.NEXT_PUBLIC_API_URL}/lesson/${prompt}`
+                      `${process.env.NEXT_PUBLIC_API_URL}/lesson`,
+                      { lesson_name: prompt, model: model }
                     );
                     if (res.data && res.data.mermaid_code) {
-                      // setMermaidCode(res.data.mermaid_code);
+                      setMermaidCode(res.data.mermaid_code);
                     }
                   } catch (error) {
                     console.error("Error:", error);
@@ -231,7 +244,7 @@ function PromptLesson() {
               }}
               className="flex items-center gap-4"
             >
-              <div className="relative flex-1">
+              <div className="relative flex items-center justify-between border border-zinc-700 px-2 rounded-xl">
                 <Search
                   className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
                   size={20}
@@ -239,10 +252,25 @@ function PromptLesson() {
                 <input
                   type="text"
                   placeholder="Enter the lesson you want for quick revision..."
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-gray-50 focus:bg-white"
+                  className="w-full pl-10 pr-4 py-3 outline-none transition-all bg-zinc-800 text-white"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                 />
+                <select
+                  value={model}
+                  onChange={(e) => setModel(e.target.value as MODEL)}
+                  name="model"
+                  id="model"
+                  className="px-2 py-1 border border-zinc-700 rounded-lg text-white bg-zinc-800 hover:bg-zinc-700 transition-colors ml-2"
+                >
+                  <option value="select model">Model</option>
+                  <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                  <option value="openai/gpt-oss-20b:free">GPT-OSS</option>
+                  <option value="openai/gpt-4o">GPT-4o</option>
+                  <option value="deepseek/deepseek-chat-v3-0324:free">
+                    DeepSeek
+                  </option>
+                </select>
               </div>
               <motion.button
                 type="submit"
@@ -266,9 +294,9 @@ function PromptLesson() {
                 animate={{ opacity: 1 }}
                 className="flex items-center justify-center h-64"
               >
-                <div className="text-center">
+                <div className="text-center text-white">
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-                  <p className="text-gray-600">
+                  <p className="text-gray-300">
                     Loading your learning diagram...
                   </p>
                 </div>
@@ -278,14 +306,14 @@ function PromptLesson() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8"
+                className="bg-zinc-800 rounded-2xl shadow-xl border border-zinc-700 p-8"
               >
                 <div className="mb-6">
-                  <p className="text-gray-600">
+                  <p className="text-gray-300">
                     Click on any node to explore detailed content and examples
                   </p>
                 </div>
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 bg-gradient-to-br from-blue-50 to-purple-50">
+                <div className="border-2 border-dashed border-zinc-500 rounded-xl p-6 bg-gray-100">
                   <MermaidDiagram
                     code={mermaidCode}
                     onNodeClick={handleNodeClick}
@@ -293,7 +321,7 @@ function PromptLesson() {
                 </div>
               </motion.div>
             ) : (
-              <div className="text-center text-gray-500 mt-16">
+              <div className="text-center text-gray-400 mt-16">
                 <p className="text-lg">
                   Start by entering a lesson topic above to generate an
                   interactive diagram.
@@ -308,7 +336,7 @@ function PromptLesson() {
       <AnimatePresence>
         {selectedNode && (
           <motion.div
-            className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4"
+            className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50 p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -318,9 +346,9 @@ function PromptLesson() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.8, opacity: 0, y: 50 }}
               transition={{ duration: 0.3 }}
-              className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+              className="bg-white text-black rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
             >
-              <div className="flex justify-between items-center border-b border-gray-200 p-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+              <div className="flex justify-between items-center border-b border-zinc-700 p-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
                 <h2 className="text-2xl font-bold">{selectedNode.label}</h2>
                 <button
                   onClick={() => setSelectedNode(null)}
@@ -337,9 +365,9 @@ function PromptLesson() {
                     animate={{ opacity: 1 }}
                     className="flex items-center justify-center h-32"
                   >
-                    <div className="text-center">
+                    <div className="text-center text-gray-300">
                       <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-3"></div>
-                      <p className="text-gray-600">Loading content...</p>
+                      <p>Loading content...</p>
                     </div>
                   </motion.div>
                 ) : (
