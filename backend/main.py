@@ -1,6 +1,6 @@
 import os
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel, EmailStr
@@ -31,10 +31,9 @@ load_dotenv()
 
 app = FastAPI()
 
-# ✅ Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -143,6 +142,7 @@ async def create_lesson(req: LessonRequest):
     nodes = extract_nodes_from_mermaid(mermaid_code["content"])
 
     lesson_doc = {
+        "user_id": req.user_id,
         "title": req.lesson_name,
         "mermaidDiagram": mermaid_code["content"],
         "model_used": req.model,
@@ -153,6 +153,7 @@ async def create_lesson(req: LessonRequest):
         if result.inserted_id is None:
             return {"error": "Failed to insert lesson"}
         return {
+            "user_id": str(result.inserted_id),
             "lesson_id": str(result.inserted_id),
             "lesson_name": req.lesson_name,
             "model": req.model,
@@ -190,10 +191,20 @@ async def create_subtopic(req: SubtopicRequest):
 
 
 @app.get("/api/lessons")
-async def get_lessons():
+async def get_lessons(user_id: str, request: Request):
+    print(user_id)
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    token = auth_header.split(" ")[1]
+    
+    if not token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
     try:
-        lessons = await lessons_collection.find().to_list(50)
-        
+        lessons = await lessons_collection.find({"user_id": user_id}).to_list(50)
+
         # Convert ObjectId to string
         for lesson in lessons:
             lesson["_id"] = str(lesson["_id"])
@@ -205,10 +216,18 @@ async def get_lessons():
 
 
 @app.get("/api/lesson/{lesson_id}")
-async def get_lesson(lesson_id: str):
+async def get_lesson(lesson_id: str, user_id: str, request: Request):
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    token = auth_header.split(" ")[1]
+    if not token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
     try:
         # 1. Fetch the lesson
-        lesson = await lessons_collection.find_one({"_id": ObjectId(lesson_id)})
+        lesson = await lessons_collection.find_one({"_id": ObjectId(lesson_id), "user_id": user_id})
         if not lesson:
             raise HTTPException(status_code=404, detail="Lesson not found")
 
@@ -229,17 +248,17 @@ async def get_lesson(lesson_id: str):
     
 
 @app.delete("/api/clear_history")
-async def clear_history():
+async def clear_history(user_id: str):
     try:
-        await lessons_collection.delete_many({})
+        await lessons_collection.delete_many({"user_id": user_id})
         return {"message": "Search history cleared"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/clear/{chat_id}")
-async def clear_chat_history(chat_id: str):
+async def clear_chat_history(chat_id: str, user_id: str):
     try:
-        await lessons_collection.delete_many({"_id": ObjectId(chat_id)})
+        await lessons_collection.delete_many({"_id": ObjectId(chat_id), "user_id": user_id})
         return {"message": "Chat history cleared"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -320,4 +339,12 @@ async def verify_otp(req: VerifyOTPRequest):
         path="/"
     )
 
+    return response
+
+@app.post("/api/logout")
+def logout():
+    response = JSONResponse(
+        content={"message": "Logout successful"}
+    )
+    response.delete_cookie("token", path="/")
     return response

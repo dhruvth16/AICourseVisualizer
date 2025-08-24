@@ -11,6 +11,7 @@ class SubtopicSchema(BaseModel):
     content_id: Optional[str] = None   # linked content
 
 class LessonSchema(BaseModel):
+    user_id: str
     title: str
     mermaidDiagram: str
     subtopics: Optional[List[str]] = []  # store ObjectIds of subtopics
@@ -19,3 +20,4 @@ class UserSchema(BaseModel):
     email: str
     name: str
     otp: str
+    lessons: Optional[List[str]] = []  # store ObjectIds of lessons

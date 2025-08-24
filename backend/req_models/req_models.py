@@ -2,6 +2,7 @@ from pydantic import BaseModel
 # Export the request models for use in other modules
 __all__ = ['LessonRequest', 'SubtopicRequest', 'SignInRequest']
 class LessonRequest(BaseModel):
+    user_id: str
     lesson_name: str
     model: str
 
