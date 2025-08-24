@@ -43,7 +43,7 @@ function LandingPage() {
             type="email"
             placeholder="Enter your email"
             className="border my-1 p-2 rounded w-full outline-none bg-gray-50"
-            value={email}
+            value={email.trim()}
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>

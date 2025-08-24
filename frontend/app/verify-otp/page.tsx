@@ -19,7 +19,7 @@ function LandingPage() {
         { email, name, otp }
       );
       if (res.status === 200) {
-        localStorage.setItem("token", res.data.token);
+        console.log(res.data);
         const secure =
           typeof window !== "undefined" &&
           window.location.protocol === "https:";
@@ -28,7 +28,13 @@ function LandingPage() {
         )}; Max-Age=${60 * 60 * 24 * 7}; Path=/; SameSite=Lax${
           secure ? "; Secure" : ""
         }`;
-        router.push(`/prompt-lesson`);
+        router.push(
+          `/prompt-lesson?user_id=${encodeURIComponent(
+            res.data.user.id
+          )}&token=${encodeURIComponent(
+            res.data.user.token
+          )}&name=${encodeURIComponent(res.data.user.name)}`
+        );
       }
     } catch (error) {
       console.error("Error submitting form:", error);

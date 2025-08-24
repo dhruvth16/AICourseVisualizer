@@ -11,7 +11,6 @@ export async function middleware(req: NextRequest) {
   }
 
   const token = req.cookies.get("token")?.value;
-  console.log("Middleware token:", token);
 
   if (!token) {
     const signinUrl = req.nextUrl.clone();

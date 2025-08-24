@@ -11,11 +11,14 @@ import {
   ChevronRight,
   Trash2,
   Plus,
+  LogOut,
 } from "lucide-react";
 import axios from "axios";
 import React, { useState, useRef, useEffect } from "react";
 import MermaidDiagram from "../helper/MermaidContentViewer";
 import "../globals.css";
+import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const enum MODEL {
   GPT_4O_MINI = "gpt-4o-mini",
@@ -46,37 +49,20 @@ function PromptLesson() {
   const [mermaidCode, setMermaidCode] = useState("");
   const [model, setModel] = useState<MODEL | "">("");
 
-  // const mermaidCode = `
-  //   graph TD
-  //     A[Start: Introduction to Integers] --> B{What are Integers?};
-  //     B --> C[Definition & Real-World Examples];
-  //     C --> D[Representing Integers on a Number Line];
-  //     D --> E[Comparing & Ordering Integers];
-  //     D --> F[Absolute Value];
-  //     D --> G[Operations with Integers];
-  //     G --> H[Addition of Integers];
-  //     H --> H1[Adding with Same Signs];    setPrompt(historyTitle);
-
-  //     H --> H2[Adding with Different Signs];
-  //     H --> I[Subtraction of Integers];
-  //     I --> I1["Add the Opposite" Method];
-  //     G --> J[Multiplication of Integers];
-  //     J --> J1[Sign Rules: Plus Plus, Minus Minus, Plus Minus, Minus Plus];
-  //     G --> K[Division of Integers];
-  //     K --> K1[Sign Rules: Same as Multiplication];
-  //     E --> L[Solving Real-World Problems];
-  //     F --> L;
-  //     I --> L;
-  //     J --> L;
-  //     K --> L;
-  //     style A fill:#ADD8E6,stroke:#333,stroke-width:2px;
-  //     style L fill:#90EE90,stroke:#333,stroke-width:2px;
-  // `;
+  const user_id = useSearchParams().get("user_id");
+  const token = useSearchParams().get("token");
+  const name = useSearchParams().get("name");
+  const router = useRouter();
 
   const fetchSearchHistory = async () => {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/lessons`
+        `${process.env.NEXT_PUBLIC_API_URL}/lessons?user_id=${user_id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
       setSearchHistory(response.data);
       setPrompt(response.data[response.data.length - 1]?.title || "");
@@ -121,7 +107,9 @@ function PromptLesson() {
   const clearHistory = () => {
     if (confirm("Are you sure you want to clear the search history?")) {
       axios
-        .delete(`${process.env.NEXT_PUBLIC_API_URL}/clear_history`)
+        .delete(
+          `${process.env.NEXT_PUBLIC_API_URL}/clear_history?user_id=${user_id}`
+        )
         .then(() => {
           setSearchHistory([]);
         })
@@ -134,7 +122,9 @@ function PromptLesson() {
   const handleDeleteHistory = (historyId: string) => {
     if (confirm("Are you sure you want to delete this search history?")) {
       axios
-        .delete(`${process.env.NEXT_PUBLIC_API_URL}/clear/${historyId}`)
+        .delete(
+          `${process.env.NEXT_PUBLIC_API_URL}/clear/${historyId}?user_id=${user_id}`
+        )
         .then(() => {
           setSearchHistory((prev) =>
             prev.filter((item) => item._id !== historyId)
@@ -197,6 +187,22 @@ function PromptLesson() {
       setSubtopicContent("⚠️ Failed to load content. Please try again.");
     } finally {
       setLoadingContent(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const res = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/logout`,
+        {},
+        { withCredentials: true }
+      );
+
+      if (res.status === 200) {
+        router.push("/");
+      }
+    } catch (error) {
+      console.error("Error logging out:", error);
     }
   };
 
@@ -296,11 +302,18 @@ function PromptLesson() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="bg-zinc-800 border-b border-zinc-700 py-3">
+        <div className="bg-zinc-800 border-b border-zinc-700 py-3 flex items-center">
           <div className="max-w-4xl text-center mx-auto">
             <h1 className="text-4xl bg-gradient-to-b from-blue-400 to-purple-500 bg-clip-text font-black tracking-tighter text-transparent mb-2 font-heading">
               Interactive Learning Dashboard
             </h1>
+          </div>
+          <div
+            onClick={handleLogout}
+            className="flex items-center bg-zinc-900 p-2 rounded-md border border-zinc-700 absolute right-4 gap-2 cursor-pointer"
+          >
+            <LogOut color="red" />
+            <span className="text-white">Logout</span>
           </div>
         </div>
 
@@ -316,7 +329,7 @@ function PromptLesson() {
                     setLoading(true);
                     const res = await axios.post(
                       `${process.env.NEXT_PUBLIC_API_URL}/lesson`,
-                      { lesson_name: prompt, model: model }
+                      { lesson_name: prompt, model: model, user_id }
                     );
                     if (res.data && res.data.mermaid_code) {
                       setMermaidCode(res.data.mermaid_code);
@@ -404,10 +417,13 @@ function PromptLesson() {
               </motion.div>
             ) : (
               <div className="text-center text-gray-400 mt-16">
-                <p className="text-lg">
+                <div className="text-lg">
+                  <h1 className="font-bold text-3xl font-heading capitalize mb-4">
+                    Welcome! {name}
+                  </h1>
                   Start by entering a lesson topic above to generate an
                   interactive diagram.
-                </p>
+                </div>
               </div>
             )}
           </div>
