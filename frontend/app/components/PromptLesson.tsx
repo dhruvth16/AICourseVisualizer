@@ -174,7 +174,8 @@ function PromptLesson() {
           lesson_name: prompt,
           subtopic_name: label,
           model: model || "gpt-4o-mini",
-        }
+        },
+        { withCredentials: true }
       );
       setSubtopicContent(res.data.subtopic_content);
 
@@ -330,7 +331,8 @@ function PromptLesson() {
                     setLoading(true);
                     const res = await axios.post(
                       `${process.env.NEXT_PUBLIC_API_URL}/lesson`,
-                      { lesson_name: prompt, model: model, user_id }
+                      { lesson_name: prompt, model: model, user_id },
+                      { withCredentials: true }
                     );
                     if (res.data && res.data.mermaid_code) {
                       setMermaidCode(res.data.mermaid_code);

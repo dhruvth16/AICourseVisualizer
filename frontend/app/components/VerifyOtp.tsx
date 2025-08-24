@@ -17,7 +17,8 @@ function VerifyOtp() {
     try {
       const res = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/verify-otp`,
-        { email, name, otp }
+        { email, name, otp },
+        { withCredentials: true }
       );
       if (res.status === 200) {
         console.log(res.data);

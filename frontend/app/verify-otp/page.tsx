@@ -1,4 +1,3 @@
-// app/prompt-lesson/page.tsx
 import { Suspense } from "react";
 import VerifyOtp from "../components/VerifyOtp";
 

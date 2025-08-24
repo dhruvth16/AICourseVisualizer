@@ -31,9 +31,14 @@ load_dotenv()
 
 app = FastAPI()
 
+origins = [
+    "http://localhost:3000",                # local dev
+    "https://ai-course-visualizer.vercel.app"  # your deployed frontend
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://ai-course-visualizer.vercel.app/", "https://localhost:3000"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
