@@ -12,14 +12,13 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-export const playfair = Playfair_Display({
+const playfair = Playfair_Display({
   subsets: ["latin"],
   weight: ["400", "600", "700"],
   variable: "--font-playfair",
 });
 
-// Clean sans-serif for body
-export const lato = Lato({
+const lato = Lato({
   subsets: ["latin"],
   weight: ["400", "700"],
   variable: "--font-lato",
@@ -38,7 +37,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${playfair.variable} antialiased`}>{children}</body>
+      <body
+        className={`${roboto.variable} ${inter.variable} ${playfair.variable} ${lato.variable} antialiased`}
+      >
+        {children}
+      </body>
     </html>
   );
 }

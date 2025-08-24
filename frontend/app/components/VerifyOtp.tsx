@@ -1,27 +1,40 @@
 "use client";
 
 import axios from "axios";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { playfair } from "../helper/fonts";
 
-function LandingPage() {
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+function VerifyOtp() {
+  const [otp, setOtp] = useState("");
+  const email = useSearchParams().get("email");
+  const name = useSearchParams().get("name");
+
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/initiate-signin`,
-        { email, name }
+        `${process.env.NEXT_PUBLIC_API_URL}/verify-otp`,
+        { email, name, otp }
       );
       if (res.status === 200) {
+        console.log(res.data);
+        const secure =
+          typeof window !== "undefined" &&
+          window.location.protocol === "https:";
+        document.cookie = `token=${encodeURIComponent(
+          res?.data?.user?.token
+        )}; Max-Age=${60 * 60 * 24 * 7}; Path=/; SameSite=Lax${
+          secure ? "; Secure" : ""
+        }`;
         router.push(
-          `/verify-otp?email=${encodeURIComponent(
-            email
-          )}&name=${encodeURIComponent(name)}`
+          `/prompt-lesson?user_id=${encodeURIComponent(
+            res.data.user.id
+          )}&token=${encodeURIComponent(
+            res.data.user.token
+          )}&name=${encodeURIComponent(res.data.user.name)}`
         );
       }
     } catch (error) {
@@ -33,7 +46,7 @@ function LandingPage() {
     <div className="w-full h-screen flex items-center justify-center bg-gray-100">
       <form
         onSubmit={handleSubmit}
-        className="bg-white px-6 py-3 rounded-lg shadow-md w-xl"
+        className="bg-white px-6 py-3 rounded-lg shadow-md w-lg"
       >
         <h1
           className={`text-2xl bg-gradient-to-b from-blue-400 to-purple-500 bg-clip-text font-black tracking-tighter text-transparent mb-6 ${playfair.variable} border-b border-gray-300 pb-3`}
@@ -41,31 +54,21 @@ function LandingPage() {
           AICourseVisualizer
         </h1>
         <div className="mb-4">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="otp">OTP</label>
           <input
-            type="email"
-            placeholder="Enter your email"
+            type="text"
+            placeholder="Enter the OTP"
             className="border my-1 p-2 rounded w-full outline-none bg-gray-50"
-            value={email.trim()}
-            onChange={(e) => setEmail(e.target.value)}
+            value={otp}
+            onChange={(e) => setOtp(e.target.value)}
           />
         </div>
         <div>
-          <label htmlFor="name">Name</label>
-          <input
-            type="text"
-            placeholder="Enter your name"
-            className="border my-1 p-2 rounded w-full outline-none bg-gray-50"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </div>
-        <div className="flex items-center justify-center w-full">
           <button
             type="submit"
             className="bg-blue-400 text-white p-2 rounded mt-4 cursor-pointer hover:bg-blue-500 transition-colors duration-100 font-semibold"
           >
-            Send OTP
+            Verify OTP
           </button>
         </div>
       </form>
@@ -73,4 +76,4 @@ function LandingPage() {
   );
 }
 
-export default LandingPage;
+export default VerifyOtp;
