@@ -16,7 +16,9 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
   useEffect(() => {
     if (!code || !chartRef.current) return;
 
-    mermaid.initialize({ startOnLoad: false });
+    mermaid.initialize({
+      startOnLoad: false,
+    });
 
     // render diagram
     mermaid.mermaidAPI.render(`mermaid-${Date.now()}`, code).then(({ svg }) => {
@@ -38,7 +40,11 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
     });
   }, [code, onNodeClick]);
 
-  return <div ref={chartRef} className="w-full p-4" />;
+  return (
+    <div className="w-full overflow-x-scroll md:p-4 p-2">
+      <div ref={chartRef} className="min-w-max" />
+    </div>
+  );
 };
 
 export default MermaidDiagram;

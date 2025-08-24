@@ -44,7 +44,7 @@ function PromptLesson() {
   const [loadingContent, setLoadingContent] = useState(false);
   const [subtopicContent, setSubtopicContent] = useState("");
   const [searchHistory, setSearchHistory] = useState<HistoryItem[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const cachedNodesContent = useRef<Record<string, string>>({});
   const [mermaidCode, setMermaidCode] = useState("");
   const [model, setModel] = useState<MODEL | "">("");
@@ -85,7 +85,12 @@ function PromptLesson() {
       setLoading(true);
 
       const { data } = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/lesson/${historyId}`
+        `${process.env.NEXT_PUBLIC_API_URL}/lesson/${historyId}?user_id=${user_id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       // Restore lesson title in the input
@@ -143,6 +148,7 @@ function PromptLesson() {
     setMermaidCode("");
     setSubtopicContent("");
     setSelectedNode(null);
+    setModel("");
   };
 
   const handleNodeClick = async (id: string, label: string) => {
@@ -213,9 +219,9 @@ function PromptLesson() {
       {/* Sidebar */}
       <motion.div
         initial={false}
-        animate={{ width: sidebarOpen ? 320 : 60 }}
+        animate={{ width: sidebarOpen ? 300 : 50 }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="bg-zinc-900 text-white shadow-2xl border-r border-zinc-800 flex flex-col relative z-10"
+        className="bg-zinc-900 text-white shadow-2xl border-r border-zinc-800 flex flex-col justify-between relative z-10"
       >
         {/* Sidebar Header */}
         <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
@@ -231,7 +237,7 @@ function PromptLesson() {
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+            className=" hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
           >
             {sidebarOpen ? (
               <ChevronLeft size={18} />
@@ -299,23 +305,25 @@ function PromptLesson() {
             )}
           </motion.div>
         )}
+
+        <div
+          onClick={handleLogout}
+          className="md:p-2 p-1 rounded-md cursor-pointer flex items-center justify-end"
+        >
+          <span className="hover:text-red-500 text-white mb-6">
+            <LogOut />
+          </span>
+        </div>
       </motion.div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-x-auto">
         {/* Header */}
         <div className="bg-zinc-800 border-b border-zinc-700 py-3 flex items-center">
           <div className="max-w-4xl text-center mx-auto">
-            <h1 className="text-4xl bg-gradient-to-b from-blue-400 to-purple-500 bg-clip-text font-black tracking-tighter text-transparent mb-2 font-heading">
+            <h1 className="lg:text-4xl md:text-3xl text-2xl bg-gradient-to-b from-blue-400 to-purple-500 bg-clip-text font-black tracking-tighter text-transparent mb-2 font-heading">
               Interactive Learning Dashboard
             </h1>
-          </div>
-          <div
-            onClick={handleLogout}
-            className="flex items-center bg-zinc-900 p-2 rounded-md border border-zinc-700 absolute right-4 gap-2 cursor-pointer"
-          >
-            <LogOut color="red" />
-            <span className="text-white">Logout</span>
           </div>
         </div>
 
@@ -344,7 +352,7 @@ function PromptLesson() {
                   }
                 }
               }}
-              className="flex items-center gap-4"
+              className="flex items-center md:flex-row flex-col gap-4"
             >
               <div className="relative flex items-center justify-between border border-zinc-700 px-2 rounded-xl">
                 <Search
@@ -354,7 +362,7 @@ function PromptLesson() {
                 <input
                   type="text"
                   placeholder="Enter the lesson you want for quick revision..."
-                  className="w-full pl-10 pr-4 py-3 outline-none transition-all bg-zinc-800 text-white"
+                  className="w-full pl-10 pr-4 md:py-3 py-2 outline-none transition-all bg-zinc-800 text-white"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                 />
@@ -363,19 +371,30 @@ function PromptLesson() {
                   onChange={(e) => setModel(e.target.value as MODEL)}
                   name="model"
                   id="model"
-                  className="px-2 py-1 border border-zinc-700 rounded-lg text-white bg-zinc-800 hover:bg-zinc-700 transition-colors ml-2"
+                  className="px-2 py-1 md:block hidden border border-zinc-700 rounded-lg text-white bg-zinc-800 hover:bg-zinc-700 transition-colors ml-2"
                 >
                   <option value="select model">Model</option>
                   <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
                   <option value="openai/gpt-oss-20b:free">GPT-OSS</option>
                 </select>
               </div>
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value as MODEL)}
+                name="model"
+                id="model"
+                className="px-2 py-1 md:hidden block border border-zinc-700 rounded-lg text-white bg-zinc-800 hover:bg-zinc-700 transition-colors ml-2"
+              >
+                <option value="select model">Model</option>
+                <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                <option value="openai/gpt-oss-20b:free">GPT-OSS</option>
+              </select>
               <motion.button
                 type="submit"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 disabled={loading || !prompt.trim()}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white px-8 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white md:px-8 px-4 md:py-3 py-2 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
               >
                 {loading ? "Processing..." : "Explore"}
               </motion.button>
@@ -384,8 +403,8 @@ function PromptLesson() {
         </div>
 
         {/* Diagram Section */}
-        <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-9xl mx-auto">
+        <div className="flex-1 overflow-auto md:p-6 p-3">
+          <div className="max-w-9xl mx-auto overflow-x-auto no-scrollbar">
             {loading ? (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -404,14 +423,16 @@ function PromptLesson() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="bg-zinc-800 rounded-2xl shadow-xl border border-zinc-700 p-8"
+                className={`bg-zinc-800 rounded-2xl shadow-xl border border-zinc-700 md:p-6 p-3 overflow-x-auto no-scrollbar ${
+                  sidebarOpen ? "md:block hidden" : "block"
+                }`}
               >
                 <div className="mb-6">
                   <p className="text-gray-300">
                     Click on any node to explore detailed content and examples
                   </p>
                 </div>
-                <div className="border-2 border-dashed border-zinc-500 rounded-xl p-6 bg-gray-100">
+                <div className="border-2 border-dashed border-zinc-500 rounded-xl md:p-6 p-3 bg-gray-100 ">
                   <MermaidDiagram
                     code={mermaidCode}
                     onNodeClick={handleNodeClick}

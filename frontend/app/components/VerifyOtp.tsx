@@ -21,7 +21,6 @@ function VerifyOtp() {
         { withCredentials: true }
       );
       if (res.status === 200) {
-        console.log(res.data);
         const secure =
           typeof window !== "undefined" &&
           window.location.protocol === "https:";
@@ -44,7 +43,7 @@ function VerifyOtp() {
   };
 
   return (
-    <div className="w-full h-screen flex items-center justify-center bg-gray-100">
+    <div className="w-full h-screen flex items-center justify-center bg-gray-100 p-4">
       <form
         onSubmit={handleSubmit}
         className="bg-white px-6 py-3 rounded-lg shadow-md w-lg"
