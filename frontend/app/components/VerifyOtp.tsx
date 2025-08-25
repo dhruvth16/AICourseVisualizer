@@ -9,12 +9,14 @@ function VerifyOtp() {
   const [otp, setOtp] = useState("");
   const email = useSearchParams().get("email");
   const name = useSearchParams().get("name");
+  const [loading, setLoading] = useState(false);
 
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
+      setLoading(true);
       const res = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/verify-otp`,
         { email, name, otp },
@@ -39,6 +41,8 @@ function VerifyOtp() {
       }
     } catch (error) {
       console.error("Error submitting form:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,7 +72,7 @@ function VerifyOtp() {
             type="submit"
             className="bg-blue-400 text-white p-2 rounded mt-4 cursor-pointer hover:bg-blue-500 transition-colors duration-100 font-semibold"
           >
-            Verify OTP
+            {loading ? "Verifying..." : "Verify OTP"}
           </button>
         </div>
       </form>

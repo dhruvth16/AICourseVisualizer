@@ -8,11 +8,13 @@ import { playfair } from "../helper/fonts";
 function LandingPage() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
+      setLoading(true);
       const res = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/initiate-signin`,
         { email, name },
@@ -27,6 +29,8 @@ function LandingPage() {
       }
     } catch (error) {
       console.error("Error submitting form:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,7 +70,7 @@ function LandingPage() {
             type="submit"
             className="bg-blue-400 text-white p-2 rounded mt-4 cursor-pointer hover:bg-blue-500 transition-colors duration-100 font-semibold"
           >
-            Send OTP
+            {loading ? "Sending..." : "Send OTP"}
           </button>
         </div>
       </form>
