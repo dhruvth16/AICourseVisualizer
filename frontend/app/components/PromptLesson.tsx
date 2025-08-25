@@ -284,14 +284,16 @@ function PromptLesson() {
                       onClick={() => handleHistoryClick(item._id)}
                       className="w-full p-3 text-left bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors border border-zinc-700"
                     >
-                      <div className="text-sm truncate text-gray-200 flex items-center justify-between">
-                        {item.title}
-                        <span
+                      <div className="text-sm truncate text-gray-200 flex items-center justify-between w-full">
+                        <div className="w-4/5 overflow-x-auto no-scrollbar">
+                          {item.title}
+                        </div>
+                        <div
                           className="hover:text-red-500 cursor-pointer"
                           onClick={() => handleDeleteHistory(item._id)}
                         >
                           <Trash2 size={15} />
-                        </span>
+                        </div>
                       </div>
                     </motion.button>
                   ))}
