@@ -4,6 +4,7 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { playfair } from "../helper/fonts";
+import Logo from "./Logo";
 
 function LandingPage() {
   const [email, setEmail] = useState("");
@@ -40,11 +41,7 @@ function LandingPage() {
         onSubmit={handleSubmit}
         className="bg-white px-6 py-3 rounded-lg shadow-md w-xl"
       >
-        <h1
-          className={`text-2xl bg-gradient-to-b from-blue-400 to-purple-500 bg-clip-text font-black tracking-tighter text-transparent mb-6 ${playfair.variable} border-b border-gray-300 pb-3`}
-        >
-          AICourseVisualizer
-        </h1>
+        <Logo />
         <div className="mb-4">
           <label htmlFor="email">Email</label>
           <input

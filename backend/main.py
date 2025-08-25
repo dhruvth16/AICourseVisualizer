@@ -351,5 +351,13 @@ def logout():
     response = JSONResponse(
         content={"message": "Logout successful"}
     )
-    response.delete_cookie("token", path="/")
+    response.set_cookie(
+        key="token",
+        value="",
+        httponly=True,
+        secure=os.getenv("ENV") == "production",
+        samesite="strict",
+        expires=0,
+        path="/"
+    )
     return response

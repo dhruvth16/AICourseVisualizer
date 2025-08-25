@@ -19,6 +19,7 @@ import MermaidDiagram from "../helper/MermaidContentViewer";
 import "../globals.css";
 import { useRouter, useSearchParams } from "next/navigation";
 import { playfair } from "../helper/fonts";
+import Logo from "./Logo";
 
 const enum MODEL {
   GPT_4O_MINI = "gpt-4o-mini",
@@ -54,6 +55,10 @@ function PromptLesson() {
   const token = searchParams.get("token");
   const name = searchParams.get("name");
   const router = useRouter();
+
+  if (!user_id || !token) {
+    router.push("/");
+  }
 
   const fetchSearchHistory = async () => {
     try {
@@ -192,7 +197,7 @@ function PromptLesson() {
       });
     } catch (error) {
       console.error("Error fetching node details:", error);
-      setSubtopicContent("⚠️ Failed to load content. Please try again.");
+      setSubtopicContent("Failed to load content. Please try again.");
     } finally {
       setLoadingContent(false);
     }
@@ -323,9 +328,7 @@ function PromptLesson() {
         {/* Header */}
         <div className="bg-zinc-800 border-b border-zinc-700 py-3 flex items-center">
           <div className="max-w-4xl text-center mx-auto">
-            <h1 className="lg:text-4xl md:text-3xl text-2xl bg-gradient-to-b from-blue-400 to-purple-500 bg-clip-text font-black tracking-tighter text-transparent mb-2 font-heading">
-              Interactive Learning Dashboard
-            </h1>
+            <Logo />
           </div>
         </div>
 
