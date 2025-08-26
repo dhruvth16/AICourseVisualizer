@@ -14,3 +14,6 @@ class SubtopicRequest(BaseModel):
 class SignInRequest(BaseModel):
     email: str
     name: str
+
+class UpdateProfileRequest(BaseModel):
+    name: str

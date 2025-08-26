@@ -12,18 +12,22 @@ import {
   Trash2,
   Plus,
   LogOut,
+  User2,
 } from "lucide-react";
 import axios from "axios";
 import React, { useState, useRef, useEffect } from "react";
 import MermaidDiagram from "../helper/MermaidContentViewer";
 import "../globals.css";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { playfair } from "../helper/fonts";
 import Logo from "./Logo";
+import EditProfile from "./EditProfile";
+import { useUser } from "../contexts/UserContext";
 
 const enum MODEL {
   GPT_4O_MINI = "gpt-4o-mini",
   GPT_OSS_20B_FREE = "gpt-oss-20b:free",
+  GEMINI_2_5_FLASH = "gemini-2.5-flash",
 }
 
 interface HistoryItem {
@@ -49,16 +53,22 @@ function PromptLesson() {
   const cachedNodesContent = useRef<Record<string, string>>({});
   const [mermaidCode, setMermaidCode] = useState("");
   const [model, setModel] = useState<MODEL | "">("");
+  const [editProfile, setEditProfile] = useState(false);
 
-  const searchParams = useSearchParams();
-  const user_id = searchParams.get("user_id");
-  const token = searchParams.get("token");
-  const name = searchParams.get("name");
   const router = useRouter();
 
-  if (!user_id || !token) {
-    router.push("/");
-  }
+  const { setUser, user } = useUser();
+
+  const user_id = user?.id;
+  const token = user?.token;
+  const name = user?.name;
+
+  const [username, setUserName] = useState(name || "");
+  // useEffect(() => {
+  //   if (!user_id || !token) {
+  //     router.push("/");
+  //   }
+  // }, [user_id, token, router]);
 
   const fetchSearchHistory = async () => {
     try {
@@ -259,6 +269,16 @@ function PromptLesson() {
             animate={{ opacity: 1 }}
             className="flex-1 overflow-y-auto p-4"
           >
+            <motion.button
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.05 }}
+              onClick={() => setEditProfile(true)}
+              className="w-full p-2 text-left bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors border border-zinc-700 flex items-center mb-4 gap-2 cursor-pointer"
+            >
+              <User2 color="white" />
+              Account
+            </motion.button>
             <div
               className="flex items-center gap-2 mb-8 cursor-pointer"
               onClick={handleNewChat}
@@ -312,15 +332,20 @@ function PromptLesson() {
             )}
           </motion.div>
         )}
-
-        <div
-          onClick={handleLogout}
-          className="md:p-2 p-1 rounded-md cursor-pointer flex items-center justify-end"
-        >
-          <span className="hover:text-red-500 text-white mb-6">
+        <motion.div className="p-3">
+          <motion.button
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.05 }}
+            onClick={handleLogout}
+            className={`w-full p-2 text-left bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors border border-zinc-700 items-center mb-2 gap-2 cursor-pointer ${
+              sidebarOpen ? "flex" : "hidden"
+            }`}
+          >
             <LogOut />
-          </span>
-        </div>
+            Logout
+          </motion.button>
+        </motion.div>
       </motion.div>
 
       {/* Main Content */}
@@ -338,7 +363,6 @@ function PromptLesson() {
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-                console.log(model);
                 if (prompt.trim()) {
                   try {
                     setLoading(true);
@@ -452,7 +476,7 @@ function PromptLesson() {
                   <h1
                     className={`font-bold text-3xl capitalize mb-4 ${playfair.variable}`}
                   >
-                    Welcome! {name}
+                    Welcome! {username}
                   </h1>
                   Start by entering a lesson topic above to generate an
                   interactive diagram.
@@ -515,6 +539,27 @@ function PromptLesson() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Profile page */}
+      {editProfile && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50 p-4"
+        >
+          <EditProfile
+            setEditProfile={setEditProfile}
+            user_id={user_id}
+            onProfileUpdate={(newName) => {
+              setUserName(newName);
+              if (user) {
+                setUser({ ...user, name: newName });
+              }
+            }}
+          />
+        </motion.div>
+      )}
     </div>
   );
 }

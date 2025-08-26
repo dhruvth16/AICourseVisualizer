@@ -6,13 +6,14 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, EmailStr
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
-from req_models.req_models import LessonRequest, SubtopicRequest, SignInRequest
+from req_models.req_models import LessonRequest, SubtopicRequest, SignInRequest, UpdateProfileRequest
 from helper.extract_nodes_from_mermaid import extract_nodes_from_mermaid
 from fastapi import HTTPException
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from pydantic import BaseModel, EmailStr
 from fastapi import FastAPI, HTTPException
 import random, string
+from bson import ObjectId
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from fastapi.responses import JSONResponse
@@ -30,8 +31,6 @@ class VerifyOTPRequest(BaseModel):
     otp: str
 
 load_dotenv()
-
-app = FastAPI()
 
 origins = [
     "http://localhost:3000",                # local dev
@@ -60,6 +59,11 @@ users_collection = db["users"]
 
 # OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+
+def serialize_user(user):
+    user["_id"] = str(user["_id"])
+    return user
 
 # -------------------------
 # AI GENERATION HELPERS
@@ -225,7 +229,6 @@ async def create_subtopic(req: SubtopicRequest):
 
 @app.get("/api/lessons")
 async def get_lessons(user_id: str, request: Request):
-    print(user_id)
     auth_header = request.headers.get("Authorization")
 
     if not auth_header or not auth_header.startswith("Bearer "):
@@ -373,6 +376,37 @@ async def verify_otp(req: VerifyOTPRequest):
     )
 
     return response
+
+@app.get("/api/get-user/{user_id}")
+async def get_user(user_id: str):
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Convert ObjectId to str
+    user["_id"] = str(user["_id"])
+    return user
+
+
+@app.put("/api/update-profile/{user_id}")
+async def update_profile(user_id: str, req: UpdateProfileRequest):
+    try:
+        result = await users_collection.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": {"name": req.name}}
+        )
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Fetch the updated user
+        updated_user = await users_collection.find_one({"_id": ObjectId(user_id)})
+        if updated_user:
+            updated_user["_id"] = str(updated_user["_id"])  # convert ObjectId to string
+            return {"message": "Profile updated successfully", "user": updated_user}
+
+        raise HTTPException(status_code=404, detail="User not found after update")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/logout")
 def logout():
