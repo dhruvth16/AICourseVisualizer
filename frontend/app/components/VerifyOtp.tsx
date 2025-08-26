@@ -3,7 +3,6 @@
 import axios from "axios";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { playfair } from "../helper/fonts";
 import Logo from "./Logo";
 
 function VerifyOtp() {

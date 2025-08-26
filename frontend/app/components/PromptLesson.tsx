@@ -379,8 +379,9 @@ function PromptLesson() {
                   className="px-2 py-1 md:block hidden border border-zinc-700 rounded-lg text-white bg-zinc-800 hover:bg-zinc-700 transition-colors ml-2"
                 >
                   <option value="select model">Model</option>
-                  <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-                  <option value="openai/gpt-oss-20b:free">GPT-OSS</option>
+                  {/* <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                  <option value="openai/gpt-oss-20b:free">GPT-OSS</option> */}
+                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                 </select>
               </div>
               <select
