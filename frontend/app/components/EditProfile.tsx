@@ -3,25 +3,27 @@
 import axios from "axios";
 import { UserIcon, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { useUser } from "../contexts/UserContext";
 
 function EditProfile({
   setEditProfile,
   user_id,
-  onProfileUpdate,
 }: {
   setEditProfile: (value: boolean) => void;
-  user_id: string | undefined;
-  onProfileUpdate: (name: string) => void;
+  user_id: string | null;
 }) {
   const [email, setEmail] = useState("");
   const [newName, setNewName] = useState("");
-  const { user, setUser } = useUser();
+  const token = localStorage.getItem("token");
 
   const fetchUserData = async () => {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/get-user/${user_id}`
+        `${process.env.NEXT_PUBLIC_API_URL}/get-user/${user_id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
       setEmail(response.data.email);
       setNewName(response.data.name);
@@ -39,14 +41,6 @@ function EditProfile({
         { withCredentials: true }
       );
       if (res.status === 200) {
-        onProfileUpdate(newName);
-        if (user) {
-          setUser({
-            ...user,
-            name: newName,
-          });
-        }
-
         setEditProfile(false);
       }
     } catch (error) {

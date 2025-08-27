@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Roboto, Inter, Playfair_Display, Lato } from "next/font/google";
 import "./globals.css";
-import { UserProvider } from "./contexts/UserContext";
 
 const roboto = Roboto({
   variable: "--font-roboto",
@@ -41,7 +40,7 @@ export default function RootLayout({
       <body
         className={`${roboto.variable} ${inter.variable} ${playfair.variable} ${lato.variable} antialiased`}
       >
-        <UserProvider>{children}</UserProvider>
+        {children}
       </body>
     </html>
   );

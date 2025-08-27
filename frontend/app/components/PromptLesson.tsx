@@ -18,11 +18,10 @@ import axios from "axios";
 import React, { useState, useRef, useEffect } from "react";
 import MermaidDiagram from "../helper/MermaidContentViewer";
 import "../globals.css";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { playfair } from "../helper/fonts";
 import Logo from "./Logo";
 import EditProfile from "./EditProfile";
-import { useUser } from "../contexts/UserContext";
 
 const enum MODEL {
   GPT_4O_MINI = "gpt-4o-mini",
@@ -57,13 +56,10 @@ function PromptLesson() {
 
   const router = useRouter();
 
-  const { setUser, user } = useUser();
+  const user_id = useSearchParams().get("user_id");
+  const token = useSearchParams().get("token");
+  const name = useSearchParams().get("name");
 
-  const user_id = user?.id;
-  const token = user?.token;
-  const name = user?.name;
-
-  const [username, setUserName] = useState(name || "");
   // useEffect(() => {
   //   if (!user_id || !token) {
   //     router.push("/");
@@ -476,7 +472,7 @@ function PromptLesson() {
                   <h1
                     className={`font-bold text-3xl capitalize mb-4 ${playfair.variable}`}
                   >
-                    Welcome! {username}
+                    Welcome! {name}
                   </h1>
                   Start by entering a lesson topic above to generate an
                   interactive diagram.
@@ -548,16 +544,7 @@ function PromptLesson() {
           transition={{ delay: 0.1 }}
           className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50 p-4"
         >
-          <EditProfile
-            setEditProfile={setEditProfile}
-            user_id={user_id}
-            onProfileUpdate={(newName) => {
-              setUserName(newName);
-              if (user) {
-                setUser({ ...user, name: newName });
-              }
-            }}
-          />
+          <EditProfile setEditProfile={setEditProfile} user_id={user_id} />
         </motion.div>
       )}
     </div>

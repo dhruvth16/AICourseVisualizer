@@ -8,7 +8,6 @@ import Bulb from "../../public/bulb-ai.png";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRightLeft } from "lucide-react";
-import { useUser } from "../contexts/UserContext";
 
 function VerifyOtp() {
   const [otp, setOtp] = useState("");
@@ -16,8 +15,6 @@ function VerifyOtp() {
   const name = useSearchParams().get("name");
   const [loading, setLoading] = useState(false);
   const [side, setSide] = useState(true);
-
-  const { setUser } = useUser();
 
   const router = useRouter();
 
@@ -31,6 +28,7 @@ function VerifyOtp() {
         { withCredentials: true }
       );
       if (res.status === 200) {
+        localStorage.setItem("token", res.data.user.token);
         const secure =
           typeof window !== "undefined" &&
           window.location.protocol === "https:";
@@ -39,13 +37,13 @@ function VerifyOtp() {
         )}; Max-Age=${60 * 60 * 24 * 7}; Path=/; SameSite=Lax${
           secure ? "; Secure" : ""
         }`;
-        router.push("/prompt-lesson");
-        setUser({
-          id: res.data.user.id,
-          name: res.data.user.name,
-          token: res.data.user.token,
-          email: res.data.user.email,
-        });
+        router.push(
+          `/prompt-lesson?name=${encodeURIComponent(
+            res?.data?.user?.name
+          )}&user_id=${encodeURIComponent(
+            res?.data?.user?.id
+          )}&token=${encodeURIComponent(res?.data?.user?.token)}`
+        );
       }
     } catch (error) {
       console.error("Error submitting form:", error);
