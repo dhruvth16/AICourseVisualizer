@@ -22,6 +22,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { playfair } from "../helper/fonts";
 import Logo from "./Logo";
 import EditProfile from "./EditProfile";
+import toast from "react-hot-toast";
 
 const enum MODEL {
   GPT_4O_MINI = "gpt-4o-mini",
@@ -53,6 +54,7 @@ function PromptLesson() {
   const [mermaidCode, setMermaidCode] = useState("");
   const [model, setModel] = useState<MODEL | "">("");
   const [editProfile, setEditProfile] = useState(false);
+  const [grade, setGrade] = useState("12");
 
   const router = useRouter();
 
@@ -60,11 +62,11 @@ function PromptLesson() {
   const token = useSearchParams().get("token");
   const name = useSearchParams().get("name");
 
-  // useEffect(() => {
-  //   if (!user_id || !token) {
-  //     router.push("/");
-  //   }
-  // }, [user_id, token, router]);
+  useEffect(() => {
+    if (!user_id || !token) {
+      router.push("/");
+    }
+  }, [user_id, token, router]);
 
   const fetchSearchHistory = async () => {
     try {
@@ -82,6 +84,7 @@ function PromptLesson() {
         response.data[response.data.length - 1]?.mermaidDiagram || ""
       );
       setModel(response.data[response.data.length - 1]?.model_used || "");
+      setGrade(response.data[response.data.length - 1]?.grade || "12");
     } catch (error) {
       console.error("Error fetching search history:", error);
     }
@@ -111,6 +114,7 @@ function PromptLesson() {
       if (data.mermaidDiagram) {
         setMermaidCode(data.mermaidDiagram);
         setModel(data.model_used);
+        setGrade(data.grade);
       } else {
         console.warn("No mermaidDiagram found in response:", data);
       }
@@ -191,10 +195,14 @@ function PromptLesson() {
           lesson_name: prompt,
           subtopic_name: label,
           model: model || "gpt-4o-mini",
+          grade: grade || "12",
         },
         { withCredentials: true }
       );
-      setSubtopicContent(res.data.subtopic_content);
+      if (res.status === 200) {
+        toast.success("Subtopic content fetched successfully!");
+        setSubtopicContent(res.data.subtopic_content);
+      }
 
       cachedNodesContent.current[label] = res.data.subtopic_content;
       await saveToDB(cacheKey, {
@@ -202,6 +210,7 @@ function PromptLesson() {
         timestamp: Date.now(),
       });
     } catch (error) {
+      toast.error("Failed to fetch subtopic content. Please try again.");
       console.error("Error fetching node details:", error);
       setSubtopicContent("Failed to load content. Please try again.");
     } finally {
@@ -210,18 +219,22 @@ function PromptLesson() {
   };
 
   const handleLogout = async () => {
-    try {
-      const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/logout`,
-        {},
-        { withCredentials: true }
-      );
+    if (confirm("Are you sure you want to log out?")) {
+      try {
+        const res = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/logout`,
+          {},
+          { withCredentials: true }
+        );
 
-      if (res.status === 200) {
-        router.push("/");
+        if (res.status === 200) {
+          toast.success("Logged out successfully!");
+          router.push("/");
+        }
+      } catch (error) {
+        toast.error("Failed to log out. Please try again.");
+        console.error("Error logging out:", error);
       }
-    } catch (error) {
-      console.error("Error logging out:", error);
     }
   };
 
@@ -364,13 +377,20 @@ function PromptLesson() {
                     setLoading(true);
                     const res = await axios.post(
                       `${process.env.NEXT_PUBLIC_API_URL}/lesson`,
-                      { lesson_name: prompt, model: model, user_id },
+                      {
+                        lesson_name: prompt,
+                        model: model,
+                        user_id,
+                        grade: grade,
+                      },
                       { withCredentials: true }
                     );
                     if (res.data && res.data.mermaid_code) {
+                      toast.success("Lesson flowchart created successfully!");
                       setMermaidCode(res.data.mermaid_code);
                     }
                   } catch (error) {
+                    toast.error("Failed to create lesson flowchart.");
                     console.error("Error:", error);
                   } finally {
                     setLoading(false);
@@ -379,31 +399,55 @@ function PromptLesson() {
               }}
               className="flex items-center md:flex-row flex-col gap-4"
             >
-              <div className="relative flex items-center justify-between border border-zinc-700 px-2 rounded-xl">
-                <Search
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  size={20}
-                />
-                <input
-                  type="text"
-                  placeholder="Enter the lesson you want for quick revision..."
-                  className="w-full pl-10 pr-4 md:py-3 py-2 outline-none transition-all bg-zinc-800 text-white"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                />
-                <select
-                  value={model}
-                  onChange={(e) => setModel(e.target.value as MODEL)}
-                  name="model"
-                  id="model"
-                  className="px-2 py-1 md:block hidden border border-zinc-700 rounded-lg text-white bg-zinc-800 hover:bg-zinc-700 transition-colors ml-2"
-                >
-                  <option value="select model">Model</option>
-                  {/* <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+              <div className="flex md:items-start flex-col gap-3 ">
+                <div className="flex flex-col md:flex-row items-center justify-between w-full gap-3 border border-zinc-700 rounded-xl px-2 md:py-3 py-2 bg-zinc-800">
+                  <label
+                    htmlFor="profession"
+                    className="text-white md:text-md text-sm font-semibold"
+                  >
+                    For which class you want result for?
+                  </label>
+                  <select
+                    name="profession"
+                    id="profession"
+                    value={grade}
+                    onChange={(e) => setGrade(e.target.value)}
+                    className="px-2 py-1 block border border-zinc-700 rounded-lg text-white bg-zinc-800 hover:bg-zinc-700 transition-colors md:ml-2"
+                  >
+                    <option value="select grade">Select Grade</option>
+                    <option value="10">10th Grade</option>
+                    <option value="12">12th Grade</option>
+                    <option value="college">College</option>
+                  </select>
+                </div>
+                <div className="relative flex items-center justify-between border border-zinc-700 px-2 rounded-xl">
+                  <Search
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    size={20}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Enter the lesson you want for quick revision..."
+                    className="w-full pl-10 pr-4 md:py-3 py-2 outline-none transition-all bg-zinc-800 text-white"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                  />
+                  <select
+                    value={model}
+                    onChange={(e) => setModel(e.target.value as MODEL)}
+                    name="model"
+                    id="model"
+                    className="px-2 py-1 md:block hidden border border-zinc-700 rounded-lg text-white bg-zinc-800 hover:bg-zinc-700 transition-colors ml-2"
+                  >
+                    <option value="select model">Model</option>
+                    {/* <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
                   <option value="openai/gpt-oss-20b:free">GPT-OSS</option> */}
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                </select>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                  </select>
+                </div>
               </div>
+
+              {/* Mobile */}
               <select
                 value={model}
                 onChange={(e) => setModel(e.target.value as MODEL)}
@@ -416,6 +460,7 @@ function PromptLesson() {
                 <option value="openai/gpt-oss-20b:free">GPT-OSS</option> */}
                 <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
               </select>
+
               <motion.button
                 type="submit"
                 whileHover={{ scale: 1.02 }}

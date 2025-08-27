@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Roboto, Inter, Playfair_Display, Lato } from "next/font/google";
+import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
 const roboto = Roboto({
@@ -40,6 +41,7 @@ export default function RootLayout({
       <body
         className={`${roboto.variable} ${inter.variable} ${playfair.variable} ${lato.variable} antialiased`}
       >
+        <Toaster position="bottom-right" reverseOrder={false} />
         {children}
       </body>
     </html>

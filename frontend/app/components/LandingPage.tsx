@@ -8,6 +8,7 @@ import Bulb from "../../public/bulb-ai.png";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRightLeft } from "lucide-react";
+import toast from "react-hot-toast";
 
 function LandingPage() {
   const [email, setEmail] = useState("");
@@ -26,6 +27,7 @@ function LandingPage() {
         { withCredentials: true }
       );
       if (res.status === 200) {
+        toast.success("OTP sent successfully! Please check your email.");
         router.push(
           `/verify-otp?email=${encodeURIComponent(
             email
@@ -33,6 +35,7 @@ function LandingPage() {
         );
       }
     } catch (error) {
+      toast.error("Failed to send OTP. Please try again.");
       console.error("Error submitting form:", error);
     } finally {
       setLoading(false);

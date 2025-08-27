@@ -104,15 +104,18 @@ def serialize_user(user):
 #         .strip(),
 #     }
 
-def generate_mermaid_code_ai(lesson_name: str, model: str) -> dict:
+def generate_mermaid_code_ai(lesson_name: str, model: str, grade: str) -> dict:
     prompt = f"""
-    Generate only Mermaid.js code flowchart (no explanation, no text, no markdown formatting). 
-    The code should describe a flowchart for the lesson "{lesson_name}"
-    with all the important subtopics and their dependencies. 
-    Output only the Mermaid code, starting directly with 
-    'flowchart TD' or 'flowchart LR' or 'graph TD' or 'graph LR'
-    according to the size of the code so that it looks good, and 
-    make sure to give the correct mermaid code which does not breaks at the time of rendering.
+    Generate a valid Mermaid.js flowchart code for the lesson "{lesson_name}" for grade {grade}.  
+
+    Requirements:  
+    - Output only the Mermaid.js code (no explanations, no markdown, no extra text).  
+    - Start strictly with one of: "flowchart TD", "flowchart LR", "graph TD", or "graph LR" (choose based on best readability).  
+    - Include all major subtopics and their dependencies in a logical hierarchy.  
+    - Ensure the code is syntactically correct and does not break when rendered.  
+    - Use clear and concise labels for nodes (avoid long sentences).  
+    - Verify the diagram flows smoothly and looks balanced.
+    - Also make sure to correct the syntax error for the mermaid code.
    """
     model = genai.GenerativeModel(model)
     response = model.generate_content(prompt)
@@ -149,8 +152,15 @@ def generate_mermaid_code_ai(lesson_name: str, model: str) -> dict:
 #         "content": data["choices"][0]["message"]["content"].strip(),
 #     }
 
-def generate_subtopic_content(lesson_name: str, subtopic_name: str, model: str) -> dict:
-    prompt = f""" Generate the quick revision notes for the lesson "{lesson_name}" and subtopic "{subtopic_name}" which contains all the important points and concepts in a descriptive manner and make sure to give the words in human readable format. """
+def generate_subtopic_content(lesson_name: str, subtopic_name: str, model: str, grade: str) -> dict:
+    prompt = f""" Generate clear and concise revision notes for the lesson "{lesson_name}" and the subtopic "{subtopic_name}" for grade {grade}.  
+
+    Requirements:  
+    - Present the notes in a structured, easy-to-read format (using short paragraphs or bullet points).  
+    - Cover all the key concepts, definitions, formulas (if any), and important points needed for quick revision.  
+    - Write in simple, human-readable language suitable for grade {grade} students.  
+    - Keep the content descriptive but concise — enough for quick understanding without being overly detailed.  
+    - Ensure accuracy and avoid unnecessary repetition.   """
     model = genai.GenerativeModel(model)
     response = model.generate_content(prompt)
     return {
@@ -175,7 +185,7 @@ def read_root():
 
 @app.post("/api/lesson")
 async def create_lesson(req: LessonRequest):
-    mermaid_code = generate_mermaid_code_ai(req.lesson_name, req.model)
+    mermaid_code = generate_mermaid_code_ai(req.lesson_name, req.model, req.grade)
     nodes = extract_nodes_from_mermaid(mermaid_code["content"])
 
     lesson_doc = {
@@ -184,6 +194,7 @@ async def create_lesson(req: LessonRequest):
         "mermaidDiagram": mermaid_code["content"],
         "model_used": req.model,
         "subtopics": nodes,
+        "grade": req.grade
     }
     try:
         result = await lessons_collection.insert_one(lesson_doc)
@@ -194,6 +205,7 @@ async def create_lesson(req: LessonRequest):
             "lesson_id": str(result.inserted_id),
             "lesson_name": req.lesson_name,
             "model": req.model,
+            "grade": req.grade,
             "mermaid_code": mermaid_code["content"],
         }
 
@@ -204,13 +216,13 @@ async def create_lesson(req: LessonRequest):
 @app.post("/api/subtopic")
 async def create_subtopic(req: SubtopicRequest):
     subtopic_content = generate_subtopic_content(
-        req.lesson_name, req.subtopic_name, req.model
+        req.lesson_name, req.subtopic_name, req.model, req.grade
     )
 
     content_doc = {
         "text": subtopic_content["content"],
         "title": req.subtopic_name,
-        "metadata": {"model": req.model},
+        "metadata": {"model": req.model, "grade": req.grade},
     }
     try:
         content_result = await contents_collection.insert_one(content_doc)
@@ -220,6 +232,7 @@ async def create_subtopic(req: SubtopicRequest):
             "lesson_name": req.lesson_name,
             "subtopic_name": req.subtopic_name,
             "model": req.model,
+            "grade": req.grade,
             "subtopic_content": subtopic_content["content"],
         }
 

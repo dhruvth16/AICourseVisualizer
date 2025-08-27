@@ -8,6 +8,7 @@ import Bulb from "../../public/bulb-ai.png";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRightLeft } from "lucide-react";
+import toast from "react-hot-toast";
 
 function VerifyOtp() {
   const [otp, setOtp] = useState("");
@@ -28,6 +29,7 @@ function VerifyOtp() {
         { withCredentials: true }
       );
       if (res.status === 200) {
+        toast.success("OTP verified successfully!");
         localStorage.setItem("token", res.data.user.token);
         const secure =
           typeof window !== "undefined" &&
@@ -46,6 +48,7 @@ function VerifyOtp() {
         );
       }
     } catch (error) {
+      toast.error("Failed to verify OTP. Please try again.");
       console.error("Error submitting form:", error);
     } finally {
       setLoading(false);
