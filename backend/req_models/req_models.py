@@ -1,6 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 # Export the request models for use in other modules
-__all__ = ['LessonRequest', 'SubtopicRequest', 'SignInRequest']
+__all__ = ['LessonRequest', 'SubtopicRequest', 'SignInRequest', 'UpdateProfileRequest', 'VerifyOTPRequest']
 class LessonRequest(BaseModel):
     user_id: str
     lesson_name: str
@@ -14,8 +14,13 @@ class SubtopicRequest(BaseModel):
     grade: str
 
 class SignInRequest(BaseModel):
-    email: str
+    email: EmailStr
     name: str
 
 class UpdateProfileRequest(BaseModel):
     name: str
+
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    name: str
+    otp: str

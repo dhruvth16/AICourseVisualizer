@@ -6,29 +6,24 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, EmailStr
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
-from req_models.req_models import LessonRequest, SubtopicRequest, SignInRequest, UpdateProfileRequest
+from req_models.req_models import LessonRequest, SubtopicRequest, SignInRequest, UpdateProfileRequest, VerifyOTPRequest
 from helper.extract_nodes_from_mermaid import extract_nodes_from_mermaid
 from fastapi import HTTPException
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
-from pydantic import BaseModel, EmailStr
+from fastapi_mail import FastMail, MessageSchema
 from fastapi import FastAPI, HTTPException
 import random, string
 from bson import ObjectId
 from datetime import datetime, timedelta
-from jose import JWTError, jwt
+from jose import jwt
 from fastapi.responses import JSONResponse
 from settings import conf
-import google.generativeai as genai
+from google import genai
 
 
 app = FastAPI()
 
 otp_store = {}
 
-class VerifyOTPRequest(BaseModel):
-    email: EmailStr
-    name: str
-    otp: str
 
 load_dotenv()
 
@@ -58,7 +53,7 @@ contents_collection = db["contents"]
 users_collection = db["users"]
 
 # OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
 def serialize_user(user):
@@ -117,8 +112,10 @@ def generate_mermaid_code_ai(lesson_name: str, model: str, grade: str) -> dict:
     - Verify the diagram flows smoothly and looks balanced.
     - Also make sure to correct the syntax error for the mermaid code.
    """
-    model = genai.GenerativeModel(model)
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model=model,
+        contents=[prompt]
+    )
     return {
         "model_used": model,
         "content": response.text.strip().replace("```mermaid", "").replace("```", "").strip()
@@ -161,8 +158,11 @@ def generate_subtopic_content(lesson_name: str, subtopic_name: str, model: str, 
     - Write in simple, human-readable language suitable for grade {grade} students.  
     - Keep the content descriptive but concise — enough for quick understanding without being overly detailed.  
     - Ensure accuracy and avoid unnecessary repetition.   """
-    model = genai.GenerativeModel(model)
-    response = model.generate_content(prompt)
+
+    response = client.models.generate_content(
+        model=model,
+        contents=[prompt]
+    )
     return {
         "model_used": model,
         "content": response.text.strip()
