@@ -15,7 +15,7 @@ import random, string
 from bson import ObjectId
 from datetime import datetime, timedelta
 from jose import jwt
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from settings import conf
 from google import genai
 
@@ -99,7 +99,7 @@ def serialize_user(user):
 #         .strip(),
 #     }
 
-def generate_mermaid_code_ai(lesson_name: str, model: str, grade: str) -> dict:
+def generate_mermaid_stream_response(lesson_name: str, model: str, grade: str) -> StreamingResponse:
     prompt = f"""
     Generate a valid Mermaid.js flowchart code for the lesson "{lesson_name}" for grade {grade}.  
 
@@ -108,18 +108,21 @@ def generate_mermaid_code_ai(lesson_name: str, model: str, grade: str) -> dict:
     - Start strictly with one of: "flowchart TD", "flowchart LR", "graph TD", or "graph LR" (choose based on best readability).  
     - Include all major subtopics and their dependencies in a logical hierarchy.  
     - Ensure the code is syntactically correct and does not break when rendered.  
+    - Ensure to remove the round brackets as well as the square branckets from the mermaid code make the text simpler so that it does not break the rendering.  
     - Use clear and concise labels for nodes (avoid long sentences).  
     - Verify the diagram flows smoothly and looks balanced.
     - Also make sure to correct the syntax error for the mermaid code.
    """
-    response = client.models.generate_content(
+    response = client.models.generate_content_stream(
         model=model,
         contents=[prompt]
     )
-    return {
-        "model_used": model,
-        "content": response.text.strip().replace("```mermaid", "").replace("```", "").strip()
-    }
+    def event_stream():
+        for chunk in response:
+            if chunk.text:
+                yield chunk.text + "\n"
+                # mermaid_code += chunk.text
+    return StreamingResponse(event_stream(), media_type="text/plain")
 
 # def generate_subtopic_content(lesson_name: str, subtopic_name: str, model: str) -> dict:
 #     prompt = f"""
@@ -182,36 +185,42 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 def read_root():
     return {"Hello": "World"}
 
+@app.post("/api/lesson/stream")
+async def stream_lesson(req: LessonRequest):
+    return generate_mermaid_stream_response(req.lesson_name, req.model, req.grade)
 
 @app.post("/api/lesson")
-async def create_lesson(req: LessonRequest):
-    mermaid_code = generate_mermaid_code_ai(req.lesson_name, req.model, req.grade)
-    nodes = extract_nodes_from_mermaid(mermaid_code["content"])
+async def create_lesson(req: LessonRequest) -> dict:
+    """
+    Save a completed mermaid diagram into the database.
+    NOTE: This route does NOT generate the diagram anymore.
+    The frontend must pass the final mermaid_code after streaming finishes.
+    """
+    nodes = extract_nodes_from_mermaid(req.mermaid_code)
 
     lesson_doc = {
         "user_id": req.user_id,
         "title": req.lesson_name,
-        "mermaidDiagram": mermaid_code["content"],
+        "mermaidDiagram": req.mermaid_code,
         "model_used": req.model,
         "subtopics": nodes,
-        "grade": req.grade
+        "grade": req.grade,
     }
+
     try:
         result = await lessons_collection.insert_one(lesson_doc)
         if result.inserted_id is None:
             return {"error": "Failed to insert lesson"}
         return {
-            "user_id": str(result.inserted_id),
+            "user_id": req.user_id,
             "lesson_id": str(result.inserted_id),
             "lesson_name": req.lesson_name,
             "model": req.model,
             "grade": req.grade,
-            "mermaid_code": mermaid_code["content"],
+            "mermaid_code": req.mermaid_code,
         }
-
     except Exception as e:
         return {"error": str(e)}
-
 
 @app.post("/api/subtopic")
 async def create_subtopic(req: SubtopicRequest):

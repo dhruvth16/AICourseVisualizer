@@ -14,6 +14,7 @@ class LessonSchema(BaseModel):
     user_id: str
     title: str
     mermaidDiagram: str
+    grade: str
     subtopics: Optional[List[str]] = []  # store ObjectIds of subtopics
 
 class UserSchema(BaseModel):

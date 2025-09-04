@@ -6,6 +6,7 @@ class LessonRequest(BaseModel):
     lesson_name: str
     model: str
     grade: str
+    mermaid_code: str | None = None
 
 class SubtopicRequest(BaseModel):
     lesson_name: str

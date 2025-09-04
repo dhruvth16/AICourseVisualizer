@@ -23,6 +23,7 @@ import { playfair } from "../helper/fonts";
 import Logo from "./Logo";
 import EditProfile from "./EditProfile";
 import toast from "react-hot-toast";
+import { safeRender } from "../helper/safeParseCode";
 
 const enum MODEL {
   GPT_4O_MINI = "gpt-4o-mini",
@@ -55,6 +56,7 @@ function PromptLesson() {
   const [model, setModel] = useState<MODEL | "">("");
   const [editProfile, setEditProfile] = useState(false);
   const [grade, setGrade] = useState("12");
+  const [isStreaming, setIsStreaming] = useState(false);
 
   const router = useRouter();
 
@@ -238,6 +240,78 @@ function PromptLesson() {
     }
   };
 
+  const streamMermaidDiagram = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMermaidCode("");
+    setIsStreaming(true);
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/lesson/stream`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lesson_name: prompt,
+          model,
+          user_id,
+          grade,
+        }),
+        credentials: "include",
+      }
+    );
+
+    if (!response.body) {
+      console.error("No response body");
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let finalCode = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      finalCode += chunk;
+      setMermaidCode((prev) => prev + chunk);
+    }
+    setIsStreaming(false);
+    await saveMermaidDiagram(finalCode);
+  };
+
+  async function saveMermaidDiagram(mermaidCode: string) {
+    if (prompt.trim()) {
+      try {
+        // setLoading(true);
+        const res = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/lesson`,
+          {
+            lesson_name: prompt,
+            model: model,
+            user_id,
+            grade: grade,
+            mermaid_code: mermaidCode,
+          },
+          { withCredentials: true }
+        );
+        if (res.data && res.data.mermaid_code) {
+          toast.success("Lesson flowchart created successfully!");
+          // if (safeRender(res.data.mermaid_code)) {
+          //   setMermaidCode(res.data.mermaid_code);
+          // } else {
+          //   toast.error("Invalid Mermaid diagram.");
+          // }
+        }
+      } catch (error) {
+        toast.error("Failed to create lesson flowchart.");
+        console.error("Error:", error);
+      } finally {
+        // setLoading(false);
+      }
+    }
+  }
+
   return (
     <div className="flex h-screen bg-black">
       {/* Sidebar */}
@@ -276,7 +350,7 @@ function PromptLesson() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex-1 overflow-y-auto p-4"
+            className="flex-1 overflow-y-auto no-scrollbar p-4"
           >
             <motion.button
               initial={{ opacity: 0, x: -20 }}
@@ -370,33 +444,7 @@ function PromptLesson() {
         <div className="bg-zinc-800 border-b border-zinc-800 p-6 flex items-center justify-center">
           <div className="max-w-4xl mx-auto">
             <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (prompt.trim()) {
-                  try {
-                    setLoading(true);
-                    const res = await axios.post(
-                      `${process.env.NEXT_PUBLIC_API_URL}/lesson`,
-                      {
-                        lesson_name: prompt,
-                        model: model,
-                        user_id,
-                        grade: grade,
-                      },
-                      { withCredentials: true }
-                    );
-                    if (res.data && res.data.mermaid_code) {
-                      toast.success("Lesson flowchart created successfully!");
-                      setMermaidCode(res.data.mermaid_code);
-                    }
-                  } catch (error) {
-                    toast.error("Failed to create lesson flowchart.");
-                    console.error("Error:", error);
-                  } finally {
-                    setLoading(false);
-                  }
-                }
-              }}
+              onSubmit={streamMermaidDiagram}
               className="flex items-center md:flex-row flex-col gap-4"
             >
               <div className="flex md:items-start flex-col gap-3 ">
@@ -477,20 +525,37 @@ function PromptLesson() {
         {/* Diagram Section */}
         <div className="flex-1 overflow-auto md:p-6 p-3">
           <div className="max-w-9xl mx-auto overflow-x-auto no-scrollbar">
-            {loading ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center justify-center h-64"
-              >
-                <div className="text-center text-white">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-                  <p className="text-gray-300">
-                    Loading your learning diagram...
-                  </p>
+            {isStreaming && (
+              <pre className="mt-4 p-2 bg-gray-100 rounded max-h-60 overflow-y-auto">
+                {mermaidCode || "Generating diagram..."}
+              </pre>
+            )}
+            {mermaidCode.length === 0 && (
+              <div className="text-center text-gray-400 mt-16">
+                <div className="text-lg">
+                  <h1
+                    className={`font-bold text-3xl capitalize mb-4 ${playfair.variable}`}
+                  >
+                    Welcome! {name}
+                  </h1>
+                  Start by entering a lesson topic above to generate an
+                  interactive diagram.
                 </div>
-              </motion.div>
-            ) : mermaidCode.length > 0 ? (
+              </div>
+            )}
+            {!isStreaming && mermaidCode && (
+              // <motion.div
+              //   initial={{ opacity: 0 }}
+              //   animate={{ opacity: 1 }}
+              //   className="flex items-center justify-center h-64"
+              // >
+              //   <div className="text-center text-white">
+              //     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+              //     <p className="text-gray-300">
+              //       Loading your learning diagram...
+              //     </p>
+              //   </div>
+              // </motion.div>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -508,6 +573,30 @@ function PromptLesson() {
                   <MermaidDiagram
                     code={mermaidCode}
                     onNodeClick={handleNodeClick}
+                    isStreaming={isStreaming}
+                  />
+                </div>
+              </motion.div>
+            )}
+            {/* ) : mermaidCode.length > 0 ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className={`bg-zinc-800 rounded-2xl shadow-xl border border-zinc-700 md:p-6 p-3 overflow-x-auto no-scrollbar ${
+                  sidebarOpen ? "md:block hidden" : "block"
+                }`}
+              >
+                <div className="mb-6">
+                  <p className="text-gray-300">
+                    Click on any node to explore detailed content and examples
+                  </p>
+                </div>
+                <div className="border-2 border-dashed border-zinc-500 rounded-xl md:p-6 p-3 bg-gray-100 ">
+                  <MermaidDiagram
+                    code={mermaidCode}
+                    onNodeClick={handleNodeClick}
+                    isStreaming={isStreaming}
                   />
                 </div>
               </motion.div>
@@ -523,7 +612,7 @@ function PromptLesson() {
                   interactive diagram.
                 </div>
               </div>
-            )}
+            )} */}
           </div>
         </div>
       </div>
