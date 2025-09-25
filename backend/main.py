@@ -28,15 +28,15 @@ otp_store = {}
 load_dotenv()
 
 origins = [
-    "http://localhost:3000",                # local dev
-    "https://ai-course-visualizer.vercel.app"  # your deployed frontend
+    "https://ai-course-visualizer.vercel.app",  # your deployed frontend
+    "http://localhost:3000",                    # local dev
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["*"],
 )
 
