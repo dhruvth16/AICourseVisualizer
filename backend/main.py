@@ -29,6 +29,7 @@ load_dotenv()
 
 origins = [
     "https://ai-course-visualizer.vercel.app",  # your deployed frontend
+    "https://ai-course-visualizer-6ryllh57e-dhruvth16s-projects.vercel.app",  # vercel preview
     "http://localhost:3000",                  # local dev
 ]
 
