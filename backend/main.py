@@ -29,7 +29,7 @@ load_dotenv()
 
 origins = [
     "https://ai-course-visualizer.vercel.app",  # your deployed frontend
-    "http://localhost:3000",                    # local dev
+    "http://localhost:3000",                  # local dev
 ]
 
 app.add_middleware(
